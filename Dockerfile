@@ -3,7 +3,7 @@
 # Save as: Dockerfile (in umm repo root)
 # ------------------------------
 
-FROM hexpm/elixir:1.18.1-erlang-26.2.1-alpine AS build
+FROM hexpm/elixir:1.18-alpine AS build
 
 # install build dependencies
 RUN apk add --no-cache build-base git npm nodejs

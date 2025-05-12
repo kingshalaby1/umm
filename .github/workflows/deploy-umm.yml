@@ -1,8 +1,3 @@
-# ------------------------------
-# GitHub Actions: deploy-umm.yml
-# ------------------------------
-# Save as: .github/workflows/deploy-umm.yml
-
 name: Deploy UMM
 
 on:
@@ -31,36 +26,11 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push image
+      - name: Build, tag, and push Docker image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_REPO_NAME: umm-app
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: latest
         run: |
           docker build -t $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
-
-      - name: Discover EC2 instances in ASG
-        id: discover
-        run: |
-          INSTANCES=$(aws ec2 describe-instances \
-            --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
-            --query 'Reservations[*].Instances[*].PublicIpAddress' \
-            --output text)
-          echo "instance_ips=$INSTANCES" >> $GITHUB_OUTPUT
-
-      - name: Deploy to all UMM EC2 instances via SSH
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ matrix.host }}
-          username: ec2-user
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            docker pull ${{ steps.login-ecr.outputs.registry }}/umm-app:${{ github.sha }}
-            docker stop umm_app || true
-            docker rm umm_app || true
-            docker run -d --name umm_app -p 4000:4000 --restart always ${{ steps.login-ecr.outputs.registry }}/umm-app:${{ github.sha }}
-        strategy:
-          matrix:
-            host: ${{ fromJson(steps.discover.outputs.instance_ips) }}
-

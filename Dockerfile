@@ -5,29 +5,28 @@
 
 FROM elixir:1.18.3-otp-26-alpine AS build
 
-# install build dependencies
+# Install build tools and Node.js for asset handling
 RUN apk add --no-cache build-base git npm nodejs
 
-# set workdir
 WORKDIR /app
 
-# install hex and rebar
+# Install Hex and Rebar
 RUN mix local.hex --force && mix local.rebar --force
 
-# cache deps
+# Cache deps
 COPY mix.exs mix.lock ./
 COPY config config
 RUN mix deps.get && mix deps.compile
 
-# build project
+# Build app source
 COPY . .
 RUN MIX_ENV=prod mix compile
 
-# build assets
+# Build frontend assets
 RUN cd assets && npm install && npm run deploy
 RUN MIX_ENV=prod mix phx.digest
 
-# release
+# Release the app
 RUN MIX_ENV=prod mix release
 
 # ------------------------------
@@ -44,4 +43,3 @@ ENV REPLACE_OS_VARS=true \
     MIX_ENV=prod
 
 ENTRYPOINT ["/app/bin/umm", "start"]
-

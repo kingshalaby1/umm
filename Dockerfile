@@ -23,7 +23,7 @@ COPY . .
 RUN MIX_ENV=prod mix compile
 
 # Build frontend assets
-RUN cd assets && npm install && npm run deploy
+RUN [ -d assets ] && cd assets && npm install && npm run deploy || echo "Skipping asset build"
 RUN MIX_ENV=prod mix phx.digest
 
 # Release the app

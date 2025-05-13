@@ -3,7 +3,7 @@
 # Save as: Dockerfile (in umm repo root)
 # ------------------------------
 
-FROM hexpm/elixir:1.18-alpine AS build
+FROM elixir:1.18.3-otp-26-alpine AS build
 
 # install build dependencies
 RUN apk add --no-cache build-base git npm nodejs

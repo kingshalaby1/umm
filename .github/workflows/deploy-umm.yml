@@ -1,8 +1,3 @@
-# ------------------------------
-# GitHub Actions: deploy-umm.yml
-# Save as: .github/workflows/deploy-umm.yml
-# ------------------------------
-
 name: Deploy UMM
 
 on:
@@ -10,35 +5,8 @@ on:
     branches: ["master"]
 
 jobs:
-  discover:
-    runs-on: ubuntu-latest
-    outputs:
-      ips: ${{ steps.discover.outputs.ips }}
-
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Discover EC2 instances in ASG
-        id: discover
-        run: |
-          IPS=$(aws ec2 describe-instances \
-            --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
-            --query 'Reservations[*].Instances[*].PublicIpAddress' \
-            --output text)
-          IPS_JSON=$(echo "$IPS" | jq -R -s -c 'split(" ") | map(select(. != ""))')
-          echo "ips=$IPS_JSON" >> $GITHUB_OUTPUT
-
   deploy:
-    needs: discover
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        host: ${{ fromJson(needs.discover.outputs.ips) }}
 
     steps:
       - name: Checkout code
@@ -67,10 +35,21 @@ jobs:
           docker build -t $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
 
-      - name: Deploy UMM to EC2 via SSH
+      - name: Discover EC2 instance IPs
+        id: discover
+        run: |
+          IPS=$(aws ec2 describe-instances \
+            --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
+            --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --output text)
+          echo "Found IPs: $IPS"
+          echo "ips=$IPS" >> $GITHUB_OUTPUT
+
+      - name: Deploy to each EC2 instance
+        if: steps.discover.outputs.ips != ''
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ matrix.host }}
+          host: ${{ fromJson('["' + steps.discover.outputs.ips + '"]')[0] }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
@@ -86,4 +65,3 @@ jobs:
               -e PORT=4000 \
               --restart always \
               ${{ steps.login-ecr.outputs.registry }}/umm-app:latest
-

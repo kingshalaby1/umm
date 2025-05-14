@@ -1,8 +1,3 @@
-# ------------------------------
-# GitHub Actions: deploy-umm.yml
-# Save as: .github/workflows/deploy-umm.yml
-# ------------------------------
-
 name: Deploy UMM
 
 on:
@@ -10,8 +5,13 @@ on:
     branches: ["master"]
 
 jobs:
-  deploy:
+  build-and-push:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
+
+    outputs:
+      image_uri: ${{ steps.set-image-uri.outputs.image_uri }}
+      instance_ips: ${{ steps.discover.outputs.ips }}
 
     steps:
       - name: Checkout code
@@ -31,38 +31,59 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push image
+      - name: Build, tag, and push Docker image
+        id: docker
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_REPO_NAME: umm-app
           IMAGE_TAG: latest
         run: |
-          docker build -t $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
+          IMAGE_URI=$ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: Discover EC2 private IPs
+      - name: Discover private IPs from ASG
         id: discover
         run: |
-          IPS=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=umm-asg" \
-            --query 'Reservations[*].Instances[*].PrivateIpAddress' \
+          INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names "umm-asg" \
+            --query "AutoScalingGroups[0].Instances[?LifecycleState=='InService'].InstanceId" \
             --output text)
-          echo "ips=$IPS" >> $GITHUB_OUTPUT
 
-      - name: Deploy via Bastion to first ASG instance
-        if: steps.discover.outputs.ips != ''
+          IPS=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_IDS \
+            --query "Reservations[*].Instances[*].PrivateIpAddress" \
+            --output text)
+
+          echo "Discovered IPs: $IPS"
+
+          IP_JSON=$(echo $IPS | jq -R 'split(" ")')
+          echo "ips=$IP_JSON" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to EC2 instances via Bastion
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        instance_ip: ${{ fromJson(needs.build-and-push.outputs.instance_ips) }}
+
+    steps:
+      - name: Deploy to instance ${{ matrix.instance_ip }}
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.BASTION_PUBLIC_IP }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          proxy_host: ${{ fromJson('["${{ steps.discover.outputs.ips }}"]')[0] }}
+          proxy_host: ${{ matrix.instance_ip }}
           proxy_username: ec2-user
           proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             docker stop umm_app || true
             docker rm umm_app || true
-            docker pull ${{ steps.login-ecr.outputs.registry }}/umm-app:latest
+            docker pull ${{ needs.build-and-push.outputs.image_uri }}
             docker run -d \
               --name umm_app \
               -p 80:80 \
@@ -70,5 +91,5 @@ jobs:
               -e PHX_SERVER=true \
               -e PHX_HOST=0.0.0.0 \
               -e PORT=80 \
-              --restart always \
-              ${{ steps.login-ecr.outputs.registry }}/umm-app:latest
+              --restart unless-stopped \
+              ${{ needs.build-and-push.outputs.image_uri }}

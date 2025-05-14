@@ -90,13 +90,13 @@ jobs:
           echo "Deploying to ${{ matrix.instance_ip }}"
           echo "Image: ${{ needs.build-and-push.outputs.image_uri }}"
 
-      - name: Deploy via Bastion
+      - name: Deploy via Bastion to private EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.BASTION_PUBLIC_IP }}
+          host: ${{ matrix.instance_ip }}                    # ← private IP of EC2
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          proxy_host: ${{ matrix.instance_ip }}
+          proxy_host: ${{ secrets.BASTION_PUBLIC_IP }}       # ← Bastion (public)
           proxy_username: ec2-user
           proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |

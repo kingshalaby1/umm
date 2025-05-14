@@ -7,7 +7,6 @@
 # General application configuration
 import Config
 
-
 config :umm,
   generators: [timestamp_type: :utc_datetime]
 

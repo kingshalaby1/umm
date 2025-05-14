@@ -101,11 +101,10 @@ jobs:
           proxy_username: ec2-user
           proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            IMAGE_URI=${{ needs.build-and-push.outputs.image_uri }}
-            echo "Deploying image: $IMAGE_URI"
+            echo "Deploying image: ${{ needs.build-and-push.outputs.image_uri }}"
             sudo docker stop umm_app || true
             sudo docker rm umm_app || true
-            sudo docker pull $IMAGE_URI
+            sudo docker pull ${{ needs.build-and-push.outputs.image_uri }}
             sudo docker run -d \
               --name umm_app \
               -p 80:80 \
@@ -114,4 +113,4 @@ jobs:
               -e PHX_HOST=0.0.0.0 \
               -e PORT=80 \
               --restart unless-stopped \
-              $IMAGE_URI
+              ${{ needs.build-and-push.outputs.image_uri }}

@@ -40,22 +40,25 @@ jobs:
           docker build -t $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
 
-      - name: Discover EC2 instance IPs
+      - name: Discover EC2 private IPs
         id: discover
         run: |
           IPS=$(aws ec2 describe-instances \
             --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
-            --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --query 'Reservations[*].Instances[*].PrivateIpAddress' \
             --output text)
           echo "ips=$IPS" >> $GITHUB_OUTPUT
 
-      - name: Deploy to first EC2 instance
+      - name: Deploy via Bastion to first ASG instance
         if: steps.discover.outputs.ips != ''
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ fromJson('[''${{ steps.discover.outputs.ips }}'']')[0] }}
+          host: ${{ secrets.BASTION_PUBLIC_IP }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ fromJson('["${{ steps.discover.outputs.ips }}"]')[0] }}
+          proxy_username: ec2-user
+          proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             docker stop umm_app || true
             docker rm umm_app || true

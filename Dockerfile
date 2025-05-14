@@ -38,7 +38,7 @@ ENV REPLACE_OS_VARS=true \
     MIX_ENV=prod \
     SECRET_KEY_BASE=super_secret_dummy_key \
     PHX_SERVER=true \
-    PORT=4000 \
+    PORT=80 \
     PHX_HOST=0.0.0.0
 
 ENTRYPOINT ["/app/bin/umm", "start"]

@@ -6,7 +6,7 @@
 FROM elixir:1.18.3-otp-26-alpine AS build
 
 # Install system dependencies
-RUN apk add --no-cache build-base git nodejs npm
+RUN apk add --no-cache build-base git nodejs
 
 WORKDIR /app
 
@@ -21,8 +21,7 @@ RUN mix deps.get && mix deps.compile
 # Build application
 COPY . .
 RUN MIX_ENV=prod mix compile
-RUN cd assets && npm ci && npm run deploy
-RUN MIX_ENV=prod mix phx.digest
+RUN MIX_ENV=prod mix assets.deploy
 RUN MIX_ENV=prod mix release
 
 # ------------------------------

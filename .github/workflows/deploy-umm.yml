@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
+      image_uri: ${{ steps.docker.outputs.image_uri }}
       instance_ips: ${{ steps.discover.outputs.ips }}
 
     steps:
@@ -38,9 +39,9 @@ jobs:
           IMAGE_TAG: latest
         run: |
           IMAGE_URI=$ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
       - name: Discover EC2 IPs from ASG by tag
         id: discover
@@ -83,14 +84,11 @@ jobs:
       matrix:
         instance_ip: ${{ fromJson(needs.build-and-push.outputs.instance_ips) }}
 
-    env:
-      IMAGE_URI: ${{ env.IMAGE_URI }}
-
     steps:
       - name: Debug context
         run: |
           echo "Deploying to ${{ matrix.instance_ip }}"
-          echo "Using image: $IMAGE_URI"
+          echo "Using image: ${{ needs.build-and-push.outputs.image_uri }}"
 
       - name: Deploy via Bastion
         uses: appleboy/ssh-action@v0.1.10
@@ -104,7 +102,7 @@ jobs:
           script: |
             sudo docker stop umm_app || true
             sudo docker rm umm_app || true
-            sudo docker pull $IMAGE_URI
+            sudo docker pull ${{ needs.build-and-push.outputs.image_uri }}
             sudo docker run -d \
               --name umm_app \
               -p 80:80 \
@@ -113,4 +111,4 @@ jobs:
               -e PHX_HOST=0.0.0.0 \
               -e PORT=80 \
               --restart unless-stopped \
-              $IMAGE_URI
+              ${{ needs.build-and-push.outputs.image_uri }}

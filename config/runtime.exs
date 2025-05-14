@@ -21,12 +21,10 @@ end
 
     config :umm, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  config :agg, AggWeb.Endpoint,
+  config :umm, UmmWeb.Endpoint,
          url: [host: host, port: 80],
          http: [ip: {0, 0, 0, 0}, port: port],
          secret_key_base: secret_key_base
-
-
 
   topologies = [
     umm_cluster: [

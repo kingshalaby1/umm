@@ -82,7 +82,7 @@ jobs:
 
           IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0)) | @json')
           SANITIZED=$(echo "$IP_JSON" | tr -d '\n' | tr -d '\r' | tr -d '\t')
-          echo "ips=$SANITIZED" >> $GITHUB_OUTPUT
+          printf "ips=%s" "$SANITIZED" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy to EC2 Instances

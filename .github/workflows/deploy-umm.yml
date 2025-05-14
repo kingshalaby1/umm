@@ -1,3 +1,4 @@
+
 # ------------------------------
 # GitHub Actions: deploy-umm.yml
 # Save as: .github/workflows/deploy-umm.yml
@@ -12,6 +13,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        host: ${{ fromJson(steps.discover.outputs.ips) }}
 
     steps:
       - name: Checkout code
@@ -47,10 +52,9 @@ jobs:
             --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
             --query 'Reservations[*].Instances[*].PublicIpAddress' \
             --output text)
-          echo "ips=$IPS" >> $GITHUB_OUTPUT
+          echo "ips=${IPS}" | jq -R -s -c 'split(" ")' >> $GITHUB_OUTPUT
 
       - name: Deploy UMM to EC2 via SSH
-        if: steps.discover.outputs.ips != ''
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ matrix.host }}
@@ -69,6 +73,3 @@ jobs:
               -e PORT=4000 \
               --restart always \
               ${{ steps.login-ecr.outputs.registry }}/umm-app:latest
-        strategy:
-          matrix:
-            host: ${{ fromJson(steps.discover.outputs.ips) }}

@@ -83,7 +83,8 @@ jobs:
 
           # Properly JSON encode and escape for GitHub output
           IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0)) | @json')
-          echo "ips=$IP_JSON" >> $GITHUB_OUTPUT
+          echo "ips=${IP_JSON//$'\n'/}" >> $GITHUB_OUTPUT
+  
   
   
 

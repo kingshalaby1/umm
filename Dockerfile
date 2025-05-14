@@ -21,8 +21,8 @@ RUN mix deps.get && mix deps.compile
 # Build application
 COPY . .
 RUN MIX_ENV=prod mix compile
-RUN cd assets && npm install && npm run deploy
-RUN MIX_ENV=prod mix phx.digest || true
+RUN cd assets && npm ci && npm run deploy
+RUN MIX_ENV=prod mix phx.digest
 RUN MIX_ENV=prod mix release
 
 # ------------------------------

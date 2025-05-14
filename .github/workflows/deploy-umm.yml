@@ -86,9 +86,9 @@ jobs:
         instance_ip: ${{ fromJson(needs.build-and-push.outputs.instance_ips) }}
 
     steps:
-      - name: Debug context
+      - name: Debug deployment context
         run: |
-          echo "Deploying to ${{ matrix.instance_ip }}"
+          echo "Deploying to EC2 instance: ${{ matrix.instance_ip }}"
           echo "Using image: ${{ needs.build-and-push.outputs.image_uri }}"
 
       - name: Deploy via Bastion
@@ -101,7 +101,7 @@ jobs:
           proxy_username: ec2-user
           proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Deploying image: ${{ needs.build-and-push.outputs.image_uri }}"
+            echo "Pulling image: ${{ needs.build-and-push.outputs.image_uri }}"
             sudo docker stop umm_app || true
             sudo docker rm umm_app || true
             sudo docker pull ${{ needs.build-and-push.outputs.image_uri }}

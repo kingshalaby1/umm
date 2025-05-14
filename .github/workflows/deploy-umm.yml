@@ -54,7 +54,7 @@ jobs:
 
           if [ -z "$ASG_NAME" ]; then
             echo "ASG with Name=umm-asg tag not found."
-            echo "ips=[]" >> $GITHUB_OUTPUT
+            printf "ips=[]" >> $GITHUB_OUTPUT
             exit 1
           fi
 
@@ -67,7 +67,7 @@ jobs:
 
           if [ -z "$INSTANCE_IDS" ]; then
             echo "No InService instances found in ASG."
-            echo "ips=[]" >> $GITHUB_OUTPUT
+            printf "ips=[]" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -81,8 +81,9 @@ jobs:
           echo "Found private IPs: $IPS"
 
           IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0)) | @json')
-          SANITIZED=$(echo "$IP_JSON" | tr -d '\n' | tr -d '\r' | tr -d '\t')
-          printf "ips=%s" "$SANITIZED" >> $GITHUB_OUTPUT
+
+          # ✅ Safely write JSON array to GitHub Output
+          printf "ips=%s" "$IP_JSON" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy to EC2 Instances

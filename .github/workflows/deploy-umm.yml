@@ -30,12 +30,12 @@ jobs:
             --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
             --query 'Reservations[*].Instances[*].PublicIpAddress' \
             --output text)
-          echo "ips=$(echo \"$IPS\" | jq -R -s -c 'split(\" \")')" >> $GITHUB_OUTPUT
+          IPS_JSON=$(echo "$IPS" | jq -R -s -c 'split(" ") | map(select(. != ""))')
+          echo "ips=$IPS_JSON" >> $GITHUB_OUTPUT
 
   deploy:
     needs: discover
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         host: ${{ fromJson(needs.discover.outputs.ips) }}
@@ -86,3 +86,4 @@ jobs:
               -e PORT=4000 \
               --restart always \
               ${{ steps.login-ecr.outputs.registry }}/umm-app:latest
+

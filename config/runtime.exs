@@ -38,10 +38,10 @@ if config_env() == :prod do
 
   config :umm, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  config :umm, UmmWeb.Endpoint,
-    http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PORT") || "4000")],
-    url: [host: System.get_env("PHX_HOST") || "example.com", port: 80],
-    secret_key_base: secret_key_base
+  config :umm, UMMWeb.Endpoint,
+         http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PORT") || "4000")],
+         url: [host: System.get_env("PHX_HOST") || "example.com", port: 80],
+         secret_key_base: System.get_env("SECRET_KEY_BASE")
 
   # ## SSL Support
   #

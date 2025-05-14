@@ -12,7 +12,7 @@ config :umm,
 
 # Configures the endpoint
 config :umm, UmmWeb.Endpoint,
-  url: [host: "localhost"],
+#  url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: UmmWeb.ErrorHTML, json: UmmWeb.ErrorJSON],

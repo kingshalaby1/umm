@@ -44,23 +44,46 @@ jobs:
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: Discover private IPs from ASG
+      - name: Discover EC2 IPs from ASG by tag
         id: discover
         run: |
-          INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
-            --auto-scaling-group-names "umm-asg" \
-            --query "AutoScalingGroups[0].Instances[?LifecycleState=='InService'].InstanceId" \
+          echo "Looking up ASG name tagged with 'Name=umm-asg'..."
+
+          ASG_NAME=$(aws autoscaling describe-auto-scaling-groups \
+            --query 'AutoScalingGroups[?Tags[?Key==`Name` && Value==`umm-asg`]].AutoScalingGroupName' \
             --output text)
+
+          if [ -z "$ASG_NAME" ]; then
+            echo "ASG with Name=umm-asg tag not found."
+            echo "ips=[]" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "Found ASG: $ASG_NAME"
+
+          INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names "$ASG_NAME" \
+            --query "AutoScalingGroups[].Instances[?LifecycleState=='InService'].InstanceId" \
+            --output text)
+
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "No InService instances found in ASG."
+            echo "ips=[]" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Found instance IDs: $INSTANCE_IDS"
 
           IPS=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_IDS \
             --query "Reservations[*].Instances[*].PrivateIpAddress" \
             --output text)
 
-          echo "Discovered IPs: $IPS"
+          echo "Found private IPs: $IPS"
 
-          IP_JSON=$(echo $IPS | jq -R 'split(" ")')
+          IP_JSON=$(echo "$IPS" | jq -R 'split(" ")')
           echo "ips=$IP_JSON" >> $GITHUB_OUTPUT
+  
 
   deploy:
     name: Deploy to EC2 instances via Bastion

@@ -79,10 +79,12 @@ jobs:
             --query "Reservations[*].Instances[*].PrivateIpAddress" \
             --output text)
 
+          IPS=$(echo "$IPS" | tr '\n' ' ')
           echo "Found private IPs: $IPS"
 
           IP_JSON=$(echo "$IPS" | jq -R 'split(" ")')
           echo "ips=$IP_JSON" >> $GITHUB_OUTPUT
+  
   
 
   deploy:

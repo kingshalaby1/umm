@@ -41,24 +41,20 @@ jobs:
           IMAGE_URI=$ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-          echo "::set-output name=image_uri::$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
       - name: Discover EC2 IPs from ASG by tag
         id: discover
         run: |
-          echo "Looking up ASG name tagged with 'Name=umm-asg'..."
-
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups \
             --query 'AutoScalingGroups[?Tags[?Key==`Name` && Value==`umm-asg`]].AutoScalingGroupName' \
             --output text)
 
           if [ -z "$ASG_NAME" ]; then
-            echo "ASG with Name=umm-asg tag not found."
-            printf "ips=[]" >> $GITHUB_OUTPUT
+            echo "ASG not found"
+            echo "ips=[]" >> $GITHUB_OUTPUT
             exit 1
           fi
-
-          echo "Found ASG: $ASG_NAME"
 
           INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
             --auto-scaling-group-names "$ASG_NAME" \
@@ -66,22 +62,19 @@ jobs:
             --output text)
 
           if [ -z "$INSTANCE_IDS" ]; then
-            echo "No InService instances found in ASG."
-            printf "ips=[]" >> $GITHUB_OUTPUT
+            echo "No InService instances."
+            echo "ips=[]" >> $GITHUB_OUTPUT
             exit 0
           fi
-
-          echo "Found instance IDs: $INSTANCE_IDS"
 
           IPS=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_IDS \
             --query "Reservations[*].Instances[*].PrivateIpAddress" \
             --output text | tr '\n' ' ')
 
-          echo "Found private IPs: $IPS"
-
-          IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0))' | jq -c '.')
-          printf "ips=%s" "$IP_JSON" >> $GITHUB_OUTPUT
+          CLEANED=$(echo "$IPS" | xargs)  # remove trailing/extra spaces
+          JSON=$(echo "$CLEANED" | jq -Rs 'split(" ") | map(select(length > 0))' | jq -c '.')
+          echo "ips=$JSON" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy to EC2 Instances
@@ -92,12 +85,12 @@ jobs:
         instance_ip: ${{ fromJson(needs.build-and-push.outputs.instance_ips) }}
 
     steps:
-      - name: Debug matrix and image
+      - name: Debug context
         run: |
           echo "Deploying to ${{ matrix.instance_ip }}"
-          echo "Using image: ${{ needs.build-and-push.outputs.image_uri }}"
+          echo "Image: ${{ needs.build-and-push.outputs.image_uri }}"
 
-      - name: Deploy to instance ${{ matrix.instance_ip }}
+      - name: Deploy via Bastion
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.BASTION_PUBLIC_IP }}

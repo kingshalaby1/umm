@@ -1,3 +1,8 @@
+# ------------------------------
+# GitHub Actions: deploy-umm.yml
+# Save as: .github/workflows/deploy-umm.yml
+# ------------------------------
+
 name: Deploy UMM
 
 on:
@@ -42,14 +47,13 @@ jobs:
             --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
             --query 'Reservations[*].Instances[*].PublicIpAddress' \
             --output text)
-          echo "Found IPs: $IPS"
           echo "ips=$IPS" >> $GITHUB_OUTPUT
 
-      - name: Deploy to each EC2 instance
+      - name: Deploy to first EC2 instance
         if: steps.discover.outputs.ips != ''
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ fromJson('["' + steps.discover.outputs.ips + '"]')[0] }}
+          host: ${{ fromJson('[''${{ steps.discover.outputs.ips }}'']')[0] }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |

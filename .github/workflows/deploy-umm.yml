@@ -44,7 +44,7 @@ jobs:
         id: discover
         run: |
           IPS=$(aws ec2 describe-instances \
-            --filters "Name=tag:aws:autoscaling:groupName,Values=umm-asg" \
+            --filters "Name=tag:Name,Values=umm-asg" \
             --query 'Reservations[*].Instances[*].PrivateIpAddress' \
             --output text)
           echo "ips=$IPS" >> $GITHUB_OUTPUT

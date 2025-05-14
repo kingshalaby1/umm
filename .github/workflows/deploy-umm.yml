@@ -80,10 +80,12 @@ jobs:
 
           echo "Found private IPs: $IPS"
 
-          IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0)) | @json')
+          # Final fix: build clean JSON and remove newlines completely
+          IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0))' | jq -c '.')
 
-          # ✅ Safely write JSON array to GitHub Output
+          # Write compact JSON string with no newline to GITHUB_OUTPUT
           printf "ips=%s" "$IP_JSON" >> $GITHUB_OUTPUT
+  
 
   deploy:
     name: Deploy to EC2 Instances

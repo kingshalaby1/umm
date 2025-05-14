@@ -72,7 +72,7 @@ jobs:
             --query "Reservations[*].Instances[*].PrivateIpAddress" \
             --output text | tr '\n' ' ')
 
-          CLEANED=$(echo "$IPS" | xargs)  # remove trailing/extra spaces
+          CLEANED=$(echo "$IPS" | xargs)
           JSON=$(echo "$CLEANED" | jq -Rs 'split(" ") | map(select(length > 0))' | jq -c '.')
           echo "ips=$JSON" >> $GITHUB_OUTPUT
 
@@ -88,22 +88,22 @@ jobs:
       - name: Debug context
         run: |
           echo "Deploying to ${{ matrix.instance_ip }}"
-          echo "Image: ${{ needs.build-and-push.outputs.image_uri }}"
+          echo "Using image: ${{ needs.build-and-push.outputs.image_uri }}"
 
-      - name: Deploy via Bastion to private EC2
+      - name: Deploy via Bastion
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ matrix.instance_ip }}                    # ← private IP of EC2
+          host: ${{ matrix.instance_ip }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          proxy_host: ${{ secrets.BASTION_PUBLIC_IP }}       # ← Bastion (public)
+          proxy_host: ${{ secrets.BASTION_PUBLIC_IP }}
           proxy_username: ec2-user
           proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            docker stop umm_app || true
-            docker rm umm_app || true
-            docker pull ${{ needs.build-and-push.outputs.image_uri }}
-            docker run -d \
+            sudo docker stop umm_app || true
+            sudo docker rm umm_app || true
+            sudo docker pull ${{ needs.build-and-push.outputs.image_uri }}
+            sudo docker run -d \
               --name umm_app \
               -p 80:80 \
               -e SECRET_KEY_BASE=super_secret_dummy_key \

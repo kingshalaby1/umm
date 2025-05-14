@@ -41,7 +41,7 @@ jobs:
           IMAGE_URI=$ECR_REGISTRY/$IMAGE_REPO_NAME:$IMAGE_TAG
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "::set-output name=image_uri::$IMAGE_URI"
 
       - name: Discover EC2 IPs from ASG by tag
         id: discover
@@ -92,13 +92,12 @@ jobs:
         instance_ip: ${{ fromJson(needs.build-and-push.outputs.instance_ips) }}
 
     steps:
-      - name: Debug context
+      - name: Debug matrix and image
         run: |
           echo "Deploying to ${{ matrix.instance_ip }}"
           echo "Using image: ${{ needs.build-and-push.outputs.image_uri }}"
 
       - name: Deploy to instance ${{ matrix.instance_ip }}
-        id: deploy
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.BASTION_PUBLIC_IP }}
@@ -120,4 +119,3 @@ jobs:
               -e PORT=80 \
               --restart unless-stopped \
               ${{ needs.build-and-push.outputs.image_uri }}
-  

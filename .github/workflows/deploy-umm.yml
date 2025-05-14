@@ -77,12 +77,12 @@ jobs:
           IPS=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_IDS \
             --query "Reservations[*].Instances[*].PrivateIpAddress" \
-            --output text)
+            --output text | tr '\n' ' ')
 
-          IPS=$(echo "$IPS" | tr '\n' ' ')
           echo "Found private IPs: $IPS"
 
-          IP_JSON=$(echo "$IPS" | jq -R 'split(" ")')
+          # Properly JSON encode and escape for GitHub output
+          IP_JSON=$(echo "$IPS" | jq -Rs 'split(" ") | map(select(length > 0)) | @json')
           echo "ips=$IP_JSON" >> $GITHUB_OUTPUT
   
   
